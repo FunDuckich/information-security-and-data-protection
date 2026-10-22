@@ -6,7 +6,13 @@ from tools.files import save_bytes
 def main() -> int:
     source = ask_path("Файл с шифротекстом", "output/vigenere.txt")
     key = input("Ключ (русские буквы): ")
-    text = decrypt_text(source.read_bytes().decode("utf-8"), key)
+    try:
+        encrypted = source.read_bytes().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ValueError(
+            "Шифротекст должен быть текстовым файлом в UTF-8. Проверьте его кодировку."
+        ) from None
+    text = decrypt_text(encrypted, key)
     print("Расшифрованный текст:")
     print(text)
     if confirm("Сохранить текст в файл?"):

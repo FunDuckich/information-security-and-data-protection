@@ -1,23 +1,58 @@
 import json
 
-from task_04_gamma.cipher import apply_gamma
+from task_04_gamma.cipher import apply_gamma, checksum
 from tools.console import ask_path, confirm, run
 from tools.files import save_bytes
 
 
 def main() -> int:
-    source = ask_path("Файл с шифротекстом", "output/gamma.bin")
+    source = ask_path("Файл с шифротекстом", "output/gamma.txt")
     with source.open("rb") as stream:
-        header = json.loads(stream.readline().decode("utf-8"))
+        try:
+            header = json.loads(stream.readline().decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise ValueError(
+                "Не удалось прочитать заголовок: файл повреждён или выбран другой файл."
+            ) from None
         encrypted = stream.read()
     if (
         not isinstance(header, dict)
-        or set(header) != {"salt", "encoding"}
+        or set(header)
+        not in ({"salt", "encoding"}, {"salt", "encoding", "format", "sha256"})
+        or not isinstance(header["salt"], str)
+        or not header["salt"]
         or header["encoding"] not in ("utf-8", "cp1251")
     ):
-        raise ValueError("В файле должны быть соль и кодировка utf-8 или cp1251.")
+        raise ValueError(
+            "Неверный заголовок: нужны непустая соль и кодировка utf-8 или cp1251."
+        )
+    if "format" in header:
+        if (
+            header["format"] != "hex"
+            or not isinstance(header["sha256"], str)
+            or len(header["sha256"]) != 64
+            or any(
+                character not in "0123456789abcdef" for character in header["sha256"]
+            )
+        ):
+            raise ValueError("Неверный формат шифротекста или контрольной суммы.")
+        try:
+            encrypted = bytes.fromhex(encrypted.decode("ascii"))
+        except (UnicodeDecodeError, ValueError):
+            raise ValueError(
+                "Шифротекст повреждён: ожидались пары шестнадцатеричных цифр."
+            ) from None
+        if checksum(encrypted, header["salt"], header["encoding"]) != header["sha256"]:
+            raise ValueError(
+                "Файл изменён или повреждён: контрольная сумма не совпадает."
+            )
     data = apply_gamma(encrypted, header["salt"])
-    text = data.decode(header["encoding"])
+    try:
+        text = data.decode(header["encoding"])
+    except UnicodeDecodeError:
+        raise ValueError(
+            "Не удалось восстановить текст: файл повреждён либо неверны соль или кодировка."
+        ) from None
     print(f"Соль: {header['salt']}")
     print("Расшифрованный текст:")
     print(text)
