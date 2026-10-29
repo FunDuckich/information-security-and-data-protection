@@ -1,6 +1,6 @@
 import json
 
-from task_04_gamma.cipher import apply_gamma, checksum
+from task_04_gamma.cipher import apply_gamma
 from tools.console import ask_path, run
 from tools.files import save_bytes
 
@@ -26,7 +26,6 @@ def main() -> int:
             "salt": salt,
             "encoding": encoding,
             "format": "hex",
-            "sha256": checksum(encrypted, salt, encoding),
         },
         ensure_ascii=False,
     )

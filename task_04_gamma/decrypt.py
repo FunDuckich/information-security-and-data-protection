@@ -1,6 +1,6 @@
 import json
 
-from task_04_gamma.cipher import apply_gamma, checksum
+from task_04_gamma.cipher import apply_gamma
 from tools.console import ask_path, confirm, run
 from tools.files import save_bytes
 
@@ -18,7 +18,11 @@ def main() -> int:
     if (
         not isinstance(header, dict)
         or set(header)
-        not in ({"salt", "encoding"}, {"salt", "encoding", "format", "sha256"})
+        not in (
+            {"salt", "encoding"},
+            {"salt", "encoding", "format"},
+            {"salt", "encoding", "format", "sha256"},
+        )
         or not isinstance(header["salt"], str)
         or not header["salt"]
         or header["encoding"] not in ("utf-8", "cp1251")
@@ -27,25 +31,14 @@ def main() -> int:
             "Неверный заголовок: нужны непустая соль и кодировка utf-8 или cp1251."
         )
     if "format" in header:
-        if (
-            header["format"] != "hex"
-            or not isinstance(header["sha256"], str)
-            or len(header["sha256"]) != 64
-            or any(
-                character not in "0123456789abcdef" for character in header["sha256"]
-            )
-        ):
-            raise ValueError("Неверный формат шифротекста или контрольной суммы.")
+        if header["format"] != "hex":
+            raise ValueError("Неверный формат шифротекста: ожидается hex.")
         try:
             encrypted = bytes.fromhex(encrypted.decode("ascii"))
         except (UnicodeDecodeError, ValueError):
             raise ValueError(
                 "Шифротекст повреждён: ожидались пары шестнадцатеричных цифр."
             ) from None
-        if checksum(encrypted, header["salt"], header["encoding"]) != header["sha256"]:
-            raise ValueError(
-                "Файл изменён или повреждён: контрольная сумма не совпадает."
-            )
     data = apply_gamma(encrypted, header["salt"])
     try:
         text = data.decode(header["encoding"])
